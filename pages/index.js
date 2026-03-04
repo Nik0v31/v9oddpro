@@ -368,7 +368,7 @@ function OddsTable({ odds, market, outcomes }) {
 
 // ── WINSTKANS COMPONENT ──────────────────────────────────────────
 function WinProbBar({ prob, homeName, awayName }) {
-  if (!prob) return null;
+  if (!prob || prob.home == null || prob.draw == null || prob.away == null) return null;
   const { home, draw, away } = prob;
   const winner = home > away && home > draw ? "home" : away > home && away > draw ? "away" : "draw";
   return (
@@ -447,8 +447,9 @@ function FixtureCard({ fx, rank }) {
   const tabData=MARKET_TABS.find(m=>m.key===tab);
   const probWinner = prob ? (prob.home > prob.away && prob.home > prob.draw ? home.name : prob.away > prob.home && prob.away > prob.draw ? away.name : "Gelijk") : null;
   const handleClick = () => {
-    if (fx.id && typeof fx.id === "number") {
-      router.push(`/match/${fx.id}`);
+    const numericId = parseInt(fx.id, 10);
+    if (!isNaN(numericId) && numericId > 0) {
+      router.push(`/match/${numericId}`);
     } else {
       setOpen(o => !o);
     }
@@ -488,15 +489,15 @@ function FixtureCard({ fx, rank }) {
       </div>
 
       {/* Winstkans mini preview */}
-      {prob && (
+      {prob && prob.home != null && prob.draw != null && prob.away != null && (
         <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,padding:"8px 12px",background:"rgba(255,255,255,0.03)",borderRadius:8,border:"1px solid rgba(255,255,255,0.06)"}}>
           <span style={{fontSize:10,color:"rgba(255,255,255,0.35)",textTransform:"uppercase",letterSpacing:"0.06em"}}>Verwacht:</span>
           <div style={{display:"flex",gap:4,flex:1}}>
-            {[{label:home.name,val:prob.home,color:"#00ff87"},{label:"Gelijk",val:prob.draw,color:"#ffd60a"},{label:away.name,val:prob.away,color:"#ff9f43"}].map(item=>(
+            {[{label:home.name,val:prob.home||1,color:"#00ff87"},{label:"Gelijk",val:prob.draw||1,color:"#ffd60a"},{label:away.name,val:prob.away||1,color:"#ff9f43"}].map(item=>(
               <div key={item.label} style={{flex:item.val,height:4,background:item.color,borderRadius:99,opacity:0.6+(item.val/200)}} />
             ))}
           </div>
-          <span style={{fontSize:11,fontWeight:700,color:"#00ff87"}}>{probWinner} {Math.max(prob.home,prob.draw,prob.away)}%</span>
+          <span style={{fontSize:11,fontWeight:700,color:"#00ff87"}}>{probWinner} {Math.max(prob.home||0,prob.draw||0,prob.away||0)}%</span>
         </div>
       )}
 

@@ -36,7 +36,13 @@ async function loadMatchData(fixtureId) {
     apiFetch(`/api/h2h?h2h=${homeId}-${awayId}`).catch(() => []),
   ]);
 
-  const standings = standingsRaw?.[0]?.league?.standings?.[0] || [];
+  // API-Football returns standings nested differently per endpoint
+  let standings = [];
+  try {
+    const raw = standingsRaw?.[0];
+    standings = raw?.league?.standings?.[0] || raw?.standings?.[0] || raw?.[0] || [];
+    if (!Array.isArray(standings)) standings = [];
+  } catch { standings = []; }
 
   return {
     fixture: fx,
@@ -50,6 +56,7 @@ async function loadMatchData(fixtureId) {
 
 // ── HELPERS ───────────────────────────────────────────────────────
 function resultLabel(match, teamId) {
+  if (!match?.teams?.home) return { label: "?", color: "#888", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.1)" };
   const isHome = match.teams.home.id === teamId;
   const winner = match.teams.home.winner;
   if (winner === null) return { label: "G", color: "#ffd60a", bg: "rgba(255,214,10,0.15)", border: "rgba(255,214,10,0.3)" };
@@ -87,6 +94,7 @@ function calcFormStats(matches, teamId) {
 
 // ── COMPONENTS ───────────────────────────────────────────────────
 function MatchRow({ match, teamId, teamName }) {
+  if (!match?.teams?.home || !match?.teams?.away) return null;
   const isHome = match.teams.home.id === teamId;
   const opponent = isHome ? match.teams.away.name : match.teams.home.name;
   const scored   = isHome ? match.goals.home  : match.goals.away;
@@ -171,17 +179,17 @@ function StandingsTable({ standings, highlightIds }) {
           </tr>
         </thead>
         <tbody>
-          {standings.map((entry, i) => {
-            const isHighlighted = highlightIds.includes(entry.team.id);
+          {standings.filter(entry => entry && entry.team).map((entry, i) => {
+            const isHighlighted = highlightIds.includes(entry.team?.id);
             return (
-              <tr key={entry.team.id} style={{ background: isHighlighted ? "rgba(0,255,135,0.07)" : i%2===0 ? "rgba(255,255,255,0.01)" : "transparent", borderLeft: isHighlighted ? "2px solid #00ff87" : "2px solid transparent", transition:"background 0.2s" }}>
-                <td style={{ padding:"7px 6px", textAlign:"center", fontWeight: isHighlighted?800:400, color: isHighlighted?"#00ff87":"rgba(255,255,255,0.5)" }}>{entry.rank}</td>
-                <td style={{ padding:"7px 6px", fontWeight: isHighlighted?700:400, color: isHighlighted?"#fff":"rgba(255,255,255,0.7)", maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{entry.team.name}</td>
+              <tr key={entry.team?.id ?? i} style={{ background: isHighlighted ? "rgba(0,255,135,0.07)" : i%2===0 ? "rgba(255,255,255,0.01)" : "transparent", borderLeft: isHighlighted ? "2px solid #00ff87" : "2px solid transparent", transition:"background 0.2s" }}>
+                <td style={{ padding:"7px 6px", textAlign:"center", fontWeight: isHighlighted?800:400, color: isHighlighted?"#00ff87":"rgba(255,255,255,0.5)" }}>{entry.rank ?? i+1}</td>
+                <td style={{ padding:"7px 6px", fontWeight: isHighlighted?700:400, color: isHighlighted?"#fff":"rgba(255,255,255,0.7)", maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{entry.team?.name ?? "–"}</td>
                 <td style={{ padding:"7px 6px", textAlign:"center", color:"rgba(255,255,255,0.5)" }}>{entry.all?.played ?? 0}</td>
                 <td style={{ padding:"7px 6px", textAlign:"center", color:"#00ff87" }}>{entry.all?.win ?? 0}</td>
                 <td style={{ padding:"7px 6px", textAlign:"center", color:"#ffd60a" }}>{entry.all?.draw ?? 0}</td>
                 <td style={{ padding:"7px 6px", textAlign:"center", color:"#ff4d6d" }}>{entry.all?.lose ?? 0}</td>
-                <td style={{ padding:"7px 6px", textAlign:"center", fontWeight:800, color:"#fff" }}>{entry.points}</td>
+                <td style={{ padding:"7px 6px", textAlign:"center", fontWeight:800, color:"#fff" }}>{entry.points ?? 0}</td>
               </tr>
             );
           })}
@@ -264,14 +272,14 @@ export default function MatchPage() {
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
                   <div style={{ flex:1, textAlign:"right" }}>
                     <div style={{ fontSize:20, fontWeight:800, color:"#fff", lineHeight:1.2 }}>{homeName}</div>
-                    {homeStats && <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:4 }}>#{data.standings?.find(s=>s.team.id===data.homeId)?.rank || "–"} in competitie</div>}
+                    {homeStats && Array.isArray(data.standings) && <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:4 }}>#{data.standings?.find(s=>s.team?.id===data.homeId)?.rank || "–"} in competitie</div>}
                   </div>
                   <div style={{ textAlign:"center", padding:"10px 20px", background:"rgba(255,255,255,0.06)", borderRadius:12 }}>
                     <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", fontWeight:600 }}>vs</div>
                   </div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:20, fontWeight:800, color:"#fff", lineHeight:1.2 }}>{awayName}</div>
-                    {awayStats && <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:4 }}>#{data.standings?.find(s=>s.team.id===data.awayId)?.rank || "–"} in competitie</div>}
+                    {awayStats && Array.isArray(data.standings) && <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:4 }}>#{data.standings?.find(s=>s.team?.id===data.awayId)?.rank || "–"} in competitie</div>}
                   </div>
                 </div>
 
